@@ -42,6 +42,7 @@ class ResourceUtilization:
 class PatientRecord:
     patient_id: int
     arrival_time: float
+    patient_type: str
     departure_time: float = None
     
     def get_throughput_time(self) -> float:
@@ -68,16 +69,39 @@ class SystemMonitor:
         self.blocking_events: List[tuple] = []
         self.current_blocking_start: float = None
         self.last_sample_time: float = 0.0
+
+        self.time_all_recovery_busy = 0.0
+        self.total_observed_time = 0.0
+
+        self.urgent_throughputs = []
+        self.routine_throughputs = []
     
-    def record_patient_arrival(self, patient_id: int, arrival_time: float):
+    def record_patient_arrival(self, patient_id: int, arrival_time: float, patient_type: str):
         self.patient_records[patient_id] = PatientRecord(
             patient_id=patient_id,
-            arrival_time=arrival_time
+            arrival_time=arrival_time,
+            patient_type=patient_type
         )
+
+    def get_recovery_full_probability(self):
+    	if self.total_observed_time == 0:
+        	return 0.0
+    	return (self.time_all_recovery_busy / self.total_observed_time) * 100
+
     
     def record_patient_departure(self, patient_id: int, departure_time: float):
         if patient_id in self.patient_records:
-            self.patient_records[patient_id].departure_time = departure_time
+            #self.patient_records[patient_id].departure_time = departure_time
+            record = self.patient_records[patient_id]
+            record.departure_time = departure_time
+
+            throughput = record.departure_time - record.arrival_time
+
+        if hasattr(record, 'patient_type'):
+            if record.patient_type == "urgent":
+                self.urgent_throughputs.append(throughput)
+            else:
+                self.routine_throughputs.append(throughput)
     
     def sample_queue_lengths(self, prep_queue_len: int, surgery_queue_len: int, 
                             recovery_queue_len: int, duration: float):
@@ -205,6 +229,12 @@ class SystemMonitor:
         report.append(f"  Average throughput time: {patient_stats['avg_throughput_time']:.2f}")
         report.append(f"  Min throughput time: {patient_stats['min_throughput_time']:.2f}")
         report.append(f"  Max throughput time: {patient_stats['max_throughput_time']:.2f}")
+        if self.urgent_throughputs:
+            report.append(f"  Avg urgent throughput time: {sum(self.urgent_throughputs)/len(self.urgent_throughputs):.2f}")
+
+        if self.routine_throughputs:
+            report.append(f"  Avg routine throughput time: {sum(self.routine_throughputs)/len(self.routine_throughputs):.2f}")
+        
         report.append("")
         
         # Queue statistics
@@ -257,7 +287,13 @@ def monitoring_process(env: simpy.Environment, monitor: SystemMonitor,
         monitor.update_resource_utilization('prep', prep_busy_units, prep_resource.capacity, duration)
         monitor.update_resource_utilization('theatre', surgery_busy_units, surgery_resource.capacity, duration)
         monitor.update_resource_utilization('recovery', recovery_busy_units, recovery_resource.capacity, duration)
-        
+
+	# Track probability that all recovery units are busy
+        if recovery_busy_units == recovery_resource.capacity:
+            monitor.time_all_recovery_busy += duration
+
+        monitor.total_observed_time += duration
+
         monitor.last_sample_time = current_time
         yield env.timeout(interval)
 

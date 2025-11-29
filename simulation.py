@@ -9,17 +9,20 @@ import simpy
 from typing import Callable
 from config import SimulationConfig
 from monitoring import SystemMonitor, monitoring_process
+import random
 
 
 class Patient:
     """Represents a patient in the system with personal service times."""
     
-    def __init__(self, patient_id: int, prep_time: float, surgery_time: float, 
-                 recovery_time: float):
+    def __init__(self, patient_id: int, prep_time: float, surgery_time: float,
+                 recovery_time: float, patient_type: str, priority: int):
         self.patient_id = patient_id
         self.prep_time = prep_time
         self.surgery_time = surgery_time
         self.recovery_time = recovery_time
+        self.patient_type = patient_type
+        self.priority = priority
         self.arrival_time = None
         self.departure_time = None
 
@@ -31,13 +34,13 @@ def patient_process(env: simpy.Environment, patient: Patient,
                    monitor: SystemMonitor):
     """Patient process flows through prep, surgery, and recovery."""
     patient.arrival_time = env.now
-    monitor.record_patient_arrival(patient.patient_id, patient.arrival_time)
+    monitor.record_patient_arrival(patient.patient_id, patient.arrival_time, patient.patient_type)
     
     with prep_resource.request() as prep_request:
         yield prep_request
         yield env.timeout(patient.prep_time)
     
-    surgery_request = surgery_resource.request()
+    surgery_request = surgery_resource.request(priority=patient.priority)
     yield surgery_request
     yield env.timeout(patient.surgery_time)
     
@@ -78,13 +81,23 @@ def arrival_generator(env: simpy.Environment,
         prep_time = prep_time_gen()
         surgery_time = surgery_time_gen()
         recovery_time = recovery_time_gen()
+
+        if random.random() < 0.1:
+            patient_type = "urgent"
+            priority = 1
+        else:
+            patient_type = "routine"
+            priority = 2
         
         patient = Patient(
-            patient_id=patient_id,
-            prep_time=prep_time,
-            surgery_time=surgery_time,
-            recovery_time=recovery_time
+            patient_id,
+            prep_time,
+            surgery_time,
+            recovery_time,
+            patient_type,
+            priority
         )
+
         
         env.process(patient_process(
             env, patient,
@@ -102,7 +115,7 @@ def run_simulation(config: SimulationConfig) -> SystemMonitor:
     env = simpy.Environment()
     
     prep_resource = simpy.Resource(env, capacity=config.num_prep_rooms)
-    surgery_resource = simpy.Resource(env, capacity=config.num_operating_theatres)
+    surgery_resource = simpy.PriorityResource(env, capacity=config.num_operating_theatres)
     recovery_resource = simpy.Resource(env, capacity=config.num_recovery_rooms)
     
     monitor = SystemMonitor(env, config.monitoring_interval)
