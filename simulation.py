@@ -36,7 +36,8 @@ def patient_process(env: simpy.Environment, patient: Patient,
     
     # Record arrival
     patient.arrival_time = env.now
-    monitor.record_patient_arrival(patient.patient_id, patient.arrival_time, patient.patient_type)
+    queue_at_arrival = len(prep_resource.queue)
+    monitor.record_patient_arrival(patient.patient_id, patient.arrival_time, patient.patient_type, queue_at_arrival)
     
     # Preparation phase
     with prep_resource.request() as prep_request:

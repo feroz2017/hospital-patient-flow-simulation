@@ -75,13 +75,16 @@ class SystemMonitor:
 
         self.urgent_throughputs = []
         self.routine_throughputs = []
+        
+        self.queue_on_arrival_samples: List[float] = []
     
-    def record_patient_arrival(self, patient_id: int, arrival_time: float, patient_type: str):
+    def record_patient_arrival(self, patient_id: int, arrival_time: float, patient_type: str, queue_length: int = 0):
         self.patient_records[patient_id] = PatientRecord(
             patient_id=patient_id,
             arrival_time=arrival_time,
             patient_type=patient_type
         )
+        self.queue_on_arrival_samples.append(queue_length)
 
     def get_recovery_full_probability(self):
     	if self.total_observed_time == 0:
