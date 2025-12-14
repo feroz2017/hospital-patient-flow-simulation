@@ -7,7 +7,8 @@ pip3 install -r requirements.txt
 ```
 
 ## Usage
-Main Simulation
+
+### Basic Simulation
 
 ```bash
 python3 simulation.py
@@ -15,23 +16,21 @@ python3 simulation.py
 
 Outputs a performance report to console and `simulation_report.txt`.
 
-## Running Assignment 3 Experiments
+### Assignment 4 Experiments
 
-The `experiments.py` script runs all statistical experiments required for Assignment 3:
-
-- 20 independent simulation runs per configuration  
-- 3 system configurations: `3p4r`, `3p5r`, `4p5r`  
-- Paired-run comparisons using shared seeds  
-- 95% confidence intervals  
-- Blocking probability analysis  
-- Preparation queue length analysis  
-- Recovery saturation probability  
-
-### Run All Experiments
+Run the experiment design and metamodelling analysis:
 
 ```bash
 python3 experiments.py
 ```
+
+This runs:
+
+- Serial correlation analysis (10 runs, 10 samples each)
+- Experimental design with 8 configurations (2^(6-3) fractional factorial)
+- Regression model to identify significant factors
+
+Results are saved to `experiment-design-metamodelling-report.txt`.
 
 ## Configuration
 
@@ -45,24 +44,20 @@ Edit `config.py` to change parameters:
 - `recovery_time_mean`: Mean recovery time (default: 40.0)
 - `simulation_time`: Simulation duration (default: 10000.0)
 
+The config also supports uniform distributions for interarrival, prep, and recovery times.
+
 ## Output Metrics
 
-System Metrics
-- Preparation queue length
-- Surgery queue length
-- Recovery queue length
-- Utilization of all resources
-- Operating room blocking probability
-- Recovery-room full-state probability
-
-Patient-Level Metrics
-- Throughput time of each patient
-- Average urgent vs routine throughput
+- Patient throughput times
+- Queue lengths (prep, surgery, recovery)
+- Resource utilization (prep rooms, operating theatre, recovery rooms)
+- Operating theatre blocking statistics
+- Average queue length at entrance (for experiments)
 
 ## Project Structure
 
 - `simulation.py`: Main simulation logic
 - `config.py`: Configuration parameters
 - `monitoring.py`: Statistics collection
-- `experiments.py`: Independent and Paired Analysis
+- `experiments.py`: Experiment design and regression analysis
 - `requirements.txt`: Dependencies
